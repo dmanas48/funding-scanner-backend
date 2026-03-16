@@ -401,7 +401,15 @@ async def fetch_bybit(client: httpx.AsyncClient) -> None:
 # ════════════════════════════════════════════════════════════════
 
 def build_rows() -> list[dict]:
-    coins = set(bn_data.keys()) | set(by_data.keys())
+    # FIX: Include ALL coins from ALL 4 sources — not just Binance+Bybit union.
+    # This was the bug causing 0 rows when Binance/Bybit returned 0 pairs
+    # but Delta WebSocket had 180 coins.
+    coins = (
+        set(bn_data.keys()) |
+        set(by_data.keys()) |
+        set(de_data.keys()) |
+        set(cd_data.keys())
+    )
     rows  = []
 
     for coin in coins:
@@ -410,7 +418,8 @@ def build_rows() -> list[dict]:
         c = cd_data.get(coin)
         d = de_data.get(coin)
 
-        if not b and not y:
+        # Need at least one data source to make a row
+        if not b and not y and not d:
             continue
 
         # Spread from LIVE sources only
